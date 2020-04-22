@@ -34,22 +34,37 @@ class Controller(object):
         # piecewise becomes if statements
 
         # I1
-        if 0 <= t < 2:
-            t1 = self.t - 0
-            x_d = -3.25 + 1*t1 + 4.0*t1**2 - 1.375*t1**3
-            y_d = 3.25 + 0*t1 - 0.25*t1**2 + 0.125*t1**3
+        if 5 <= self.t < 10:
+            x_d = -4
+            y_d = 5
+
+        elif 15 <= self.t < 20:
+            x_d = -4
+            y_d = -5
 
         return x_d, y_d
-
-    # after t = 5, follow different line
 
 
     # def new_trajectory_function(self, t):
     #     # once we have info of where the object is we want to go to, set that point as x_d and y_d
 
     def callback(self, odometry):
-        if self.mode:
+        self.t += 0.01
+        print (self.t)
+        if 0 <= self.t < 5:
+            self.mode = False
+        elif 5 <= self.t < 10:
+            self.mode = True
+        elif 10 <= self.t < 15:
+            self.mode = False
+        elif 15 <= self.t < 20:
+            self.mode = True
+        else:
+            self.mode = False
 
+
+
+        if self.mode:
             # every time we call the callback we can increase the time
             self.t += 0.0015  # called very often, so increment with small intervals
 
@@ -61,11 +76,11 @@ class Controller(object):
 
             # if the function moves too fast, then the robot cannot follow it
             # desired point to go
-            #x_d, y_d = self.trajectory_function(self.t)
+            x_d, y_d = self.trajectory_function(self.t)
 
             # try going to point (-2,-2)
-            x_d = 2
-            y_d = -2
+            #x_d = 2
+            #y_d = -2
 
             # NOTE: in this area, have the trajectory function return the location on a target
 
@@ -87,12 +102,12 @@ class Controller(object):
             # Proportional controller for linear velocity
 
             
-            kpv = .1
+            kpv = .2
             v = kpv * distance
             
             # points us in the right direction
             # Proportional controller for angular velocity
-            kpw = 0.3  # just guessing this value for rn
+            kpw = 0.2  # just guessing this value for rn
             new_phi = phi_d - phi
             if new_phi > math.pi:
                 new_phi -= 2*math.pi
@@ -116,6 +131,7 @@ class Controller(object):
             x, y = odometry.pose.pose.position.x, odometry.pose.pose.position.y
             distance = math.sqrt(math.pow(x,2) + math.pow(y,2))
             if distance >= 9:
+
                 rotation = random.uniform(.25, 1)
 
                 # Message
@@ -129,7 +145,7 @@ class Controller(object):
                 # Message
                 twist_object = Twist();
                 twist_object.linear.x = -1.5; #TODO: Go in the other direction so the cameras can see
-                twist_object.angular.z = 0;
+                twist_object.angular.z = 0.1;
 
                 # Send message
                 self.moverosbots_object.move_robot(twist_object)
