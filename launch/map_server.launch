@@ -1,0 +1,10 @@
+<!-- This file just has the lines for adding the path to our map file.
+        Probably will not use this beyond just keeping the lines here for
+        reference. -->
+
+<launch>
+    <!-- Run the map server -->
+    <arg name="map_file" default="$(find cse360-final-project)/final_project_map.yaml"/>
+    <node pkg="map_server" type="map_server" name="map_server" args="$(arg map_file)" output="screen">
+    </node>
+</launch>
