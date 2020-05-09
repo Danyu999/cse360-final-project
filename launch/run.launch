@@ -1,0 +1,19 @@
+<launch>
+
+  <!--- Run spawn_obstacles.py -->
+  <node pkg="cse360-final-project" name="spawn_obstacles" type="spawn_obstacles.py" output="screen">
+        <param name="frame_id" value="base_link" />
+  </node>
+
+  <!--- Run AMCL -->
+  <include file="$(find turtlebot_navigation_gazebo)/launch/amcl_demo.launch" />
+
+  <!--- Run Move Base -->
+  <include file="$(find cse360-final-project)/launch/move_base_turtlebot_copy.launch" />
+
+  <!--- Run send_commands.py to launch Needy Robot -->
+  <node pkg="cse360-final-project" name="send_commands" type="send_commands.py" output="screen">
+        <param name="frame_id" value="base_link" />
+  </node>
+
+</launch>

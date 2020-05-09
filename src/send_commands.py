@@ -4,15 +4,21 @@
 ##### This file is the "working file". Contains the code that has been tested and works to fulfill
 ##### the goals of our project.
 
-''' NOTE: Make sure to have used the following command and spawned an object before running.
-    rosrun gazebo_ros spawn_model -file /home/user/catkin_ws/src/final_project/object.urdf -urdf -x -2 -y -4 -z 1 -model object1'''
-
-
 ''' How to run the code:
+    roslaunch cse360-final-project run.launch
+'''
+
+''' How to run the code manually:
+    NOTE: Make sure to have used the following command and spawned an object before running.
+    rosrun gazebo_ros spawn_model -file /home/user/catkin_ws/src/cse360-final-project/object.urdf -urdf -x -2 -y -4 -z 1 -model object1
+
+    To remove the object, run:
+    rosservice call /gazebo/delete_model "model_name: 'object1'"
+
     In webshell 1: roslaunch turtlebot_navigation_gazebo amcl_demo.launch
-    In webshell 2: roslaunch final_project move_base_turtlebot_copy.launch
+    In webshell 2: roslaunch cse360-final-project move_base_turtlebot_copy.launch
     In webshell 3: rosrun rviz rviz          (make sure the path_planning config is chosen)
-    In webshell 4: rosrun final_project send_commands.py
+    In webshell 4: rosrun cse360-final-project send_commands.py
         - This file will start the robot's random_walk
         - Will first print the x,y coordinates of the spawned box
 '''
@@ -46,10 +52,16 @@ def get_object_location():
         # create the caller of the service
         model_coordinates = rospy.ServiceProxy("gazebo/get_model_state", GetModelState)
 
-        # call the service to get the coordinates of the object we spawned with "model_name"
-        resp_coordinates = model_coordinates(model_name, relative_entity_name)
-
-        return [resp_coordinates.pose.position.x, resp_coordinates.pose.position.y]
+        while True:
+            # call the service to get the coordinates of the object we spawned with "model_name"
+            resp_coordinates = model_coordinates(model_name, relative_entity_name)
+            
+            # We continue retrying until we succeed
+            # NP: We do this because the launch file run.launch runs things in parallel, so it may
+            #       take some time for the object to spawn in.
+            if resp_coordinates.success:
+                return [resp_coordinates.pose.position.x, resp_coordinates.pose.position.y]
+            rospy.sleep(1.0)
 
     except rospy.ServiceException as e:
         print("Service call failed: ",e)
