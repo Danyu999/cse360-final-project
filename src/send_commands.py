@@ -4,11 +4,11 @@
 ##### This file is the "working file". Contains the code that has been tested and works to fulfill
 ##### the goals of our project.
 
-''' How to run the code:
+''' NEW WAY: How to run the code:
     roslaunch cse360-final-project run.launch
 '''
 
-''' How to run the code manually:
+''' OLD WAY: How to run the code manually:
     NOTE: Make sure to have used the following command and spawned an object before running.
     rosrun gazebo_ros spawn_model -file /home/user/catkin_ws/src/cse360-final-project/object.urdf -urdf -x -2 -y -4 -z 1 -model object1
 
@@ -33,10 +33,13 @@ import tf
 from move_base_msgs.msg import MoveBaseGoal, MoveBaseAction
 from geometry_msgs.msg import Pose, Point
 from actionlib_msgs.msg import GoalStatus
+from nav_msgs.msg import Odometry
 
 import random
 from gazebo_msgs.msg import ModelState
 from gazebo_msgs.srv import GetModelState
+
+import math
 
 
 # function that returns the x and y position of our spawned object
@@ -67,6 +70,7 @@ def get_object_location():
         print("Service call failed: ",e)
 
 
+
 # function that creates the goal location that will be sent to the robot's move_base_simple
 def create_goal_message(x_target, y_target, theta_target, frame='map'):
     """Create a goal message in the indicated frame"""
@@ -93,15 +97,26 @@ class NavNode(object):
 
         self.ac = actionlib.SimpleActionClient("move_base", MoveBaseAction)
 
+        self.object_x = 0
+        self.object_y = 0
+
+        self.position_robot_x = 0
+        self.position_robot_y = 0
+
+    # callback from /odom, gives the robot's position during the 'searching' phase
+    def callback(self, msg):
+        self.position_robot_x = msg.pose.pose.position.x
+        self.position_robot_y = msg.pose.pose.position.y        
+
 
     # function that finds object location and starts random walk of robot
     def start_process(self):
         location = get_object_location()
-        object_x = location[0]
-        object_y = location[1]
+        self.object_x = location[0]
+        self.object_y = location[1]
 
-        print("X position: ",object_x)
-        print("Y position: ",object_y)
+        print("X position: ", self.object_x)
+        print("Y position: ", self.object_y)
 
         nav_node = NavNode()
         # loop, calling goto_point infinitely, acts as the "random walk"
@@ -113,10 +128,18 @@ class NavNode(object):
             nav_node.goto_point(x, y)
             rospy.sleep(1.0)
 
-        
+
+    # function that makes the robot go to the object positon, this is where the functionality ends
+    def go_to_object(self):
+        print ("in TRACKING MODE")
+
+
+
     # Meat of the random walk. Sends robot to the given coordinates, notifies when goal is reached.
     def goto_point(self, x_target, y_target, theta_target=0):
         """ Move to a location relative to the robot's current position """
+
+        #nav_node = NavNode()
 
         rospy.loginfo("navigating to: ({},{})".format(x_target, y_target))
 
@@ -139,8 +162,32 @@ class NavNode(object):
                                                     self.ac.get_state())
         rospy.loginfo("State      : {}".format(state_name))
         print("3")
+
+        # this loop lasts the duration of the movement from one random walk goal to the next
+        while (self.ac.get_state() != 3):
+            # this call gets odom info and updates robot location for print statements below
+            sub = rospy.Subscriber('/odom', Odometry, self.callback)
+
+            print ("ROBOT IS AT X = ", self.position_robot_x)
+            print ("ROBOT IS AT Y = ", self.position_robot_y)
+
+            distance = math.sqrt((self.object_x - self.position_robot_y)**2 + (self.object_y - self.position_robot_y)**2)
+            print ("distance = ", distance)
+
+            print ("STATE IS: --> ", actionlib.get_name_of_constant(GoalStatus, self.ac.get_state()))
+
+            #if distance <= 0.75:
+                #print ("will make a call to go to object")
+                #nav_node.go_to_object()
+            
+
+            rospy.sleep(1.0)
+
+
+# ORIGINAL LINE:
         # Wait until the server reports a result.
-        self.ac.wait_for_result()   # pauses here, but we want to be able to check our location here
+#        self.ac.wait_for_result()   # pauses here, but we want to be able to check our location here
+        
         rospy.loginfo("Status Text: {}".format(self.ac.get_goal_status_text()))
         print("4")
         # Should be either "SUCCEEDED" or "ABORTED"
@@ -154,8 +201,3 @@ if __name__ == "__main__":
     nav_node = NavNode()
     #nav_node.goto_point(float(2), float(2), float(1))
     nav_node.start_process()
-    '''if len(sys.argv) == 3:
-        nav_node.goto_point(float(sys.argv[1]), float(sys.argv[2]))
-    else:
-        nav_node.goto_point(float(sys.argv[1]), float(sys.argv[2]),
-                            float(sys.argv[3]))'''

@@ -15,7 +15,7 @@ def main():
     # TODO: Randomize the coordinates
     file_path = '/home/user/catkin_ws/src/cse360-final-project/object.urdf'
     x = str(random.randint(-3, 3))
-    y = str(random.randint(-9, 6))
+    y = str(random.randint(-9, -5))
     z = '1'
     args = ['rosrun', 'gazebo_ros', 'spawn_model', '-file', file_path, '-urdf', '-x', x, '-y', y, '-z', z, '-model', object_name]
     out = subprocess.check_output(args)
