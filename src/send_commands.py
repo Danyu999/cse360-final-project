@@ -63,7 +63,7 @@ def get_object_location():
             # NP: We do this because the launch file run.launch runs things in parallel, so it may
             #       take some time for the object to spawn in.
             if resp_coordinates.success:
-                return [resp_coordinates.pose.position.x, resp_coordinates.pose.position.y]
+                return [resp_coordinates.pose.position.x + 2, resp_coordinates.pose.position.y]
             rospy.sleep(1.0)
 
     except rospy.ServiceException as e:
@@ -103,10 +103,15 @@ class NavNode(object):
         self.position_robot_x = 0
         self.position_robot_y = 0
 
+        # this call gets odom info and updates robot location for print statements below
+        odom_sub = rospy.Subscriber('/odom', Odometry, self.callback)
+
     # callback from /odom, gives the robot's position during the 'searching' phase
     def callback(self, msg):
         self.position_robot_x = msg.pose.pose.position.x
-        self.position_robot_y = msg.pose.pose.position.y        
+        self.position_robot_y = msg.pose.pose.position.y
+        # print("Robot x: ", self.position_robot_x)
+        # print("Robot y: ", self.position_robot_y)
 
 
     # function that finds object location and starts random walk of robot
@@ -114,9 +119,6 @@ class NavNode(object):
         location = get_object_location()
         self.object_x = location[0]
         self.object_y = location[1]
-
-        print("X position: ", self.object_x)
-        print("Y position: ", self.object_y)
 
         nav_node = NavNode()
         # loop, calling goto_point infinitely, acts as the "random walk"
@@ -129,9 +131,50 @@ class NavNode(object):
             rospy.sleep(1.0)
 
 
-    # function that makes the robot go to the object positon, this is where the functionality ends
+    # function that makes the robot go to the object position, this is where the functionality ends
     def go_to_object(self):
         print ("in TRACKING MODE")
+        curr_object_x = self.object_x
+        curr_object_y = self.object_y
+        rospy.loginfo("navigating to: ({},{})".format(self.object_x, self.object_y))
+
+        goal = create_goal_message(self.object_x, self.object_y, 0,'map')
+
+        rospy.loginfo("Waiting for server.")
+        self.ac.wait_for_server()
+
+        rospy.loginfo("Sending goal.")
+        self.ac.send_goal(goal)
+        rospy.loginfo("Goal Sent.")
+
+        while(True):
+            # Update the object location
+            location = get_object_location()
+            self.object_x = location[0]
+            self.object_y = location[1]
+
+            print ("ROBOT IS AT X = ", self.position_robot_x)
+            print ("ROBOT IS AT Y = ", self.position_robot_y)
+            print("Object x: ", self.object_x)
+            print("Object y: ", self.object_y)
+
+            # We send a new goal if the object has moved
+            # NB: By implementation of send_goal(), this overrides any previous active goal
+            if(curr_object_x != self.object_x or curr_object_y != self.object_y):
+                curr_object_x = self.object_x
+                curr_object_y = self.object_y
+                rospy.loginfo("navigating to: ({},{})".format(self.object_x, self.object_y))
+
+                goal = create_goal_message(self.object_x, self.object_y, 0,'map')
+
+                rospy.loginfo("Waiting for server.")
+                self.ac.wait_for_server()
+
+                rospy.loginfo("Sending goal.")
+                self.ac.send_goal(goal)
+                rospy.loginfo("Goal Sent.")
+            
+            rospy.sleep(1.0)
 
 
 
@@ -164,21 +207,28 @@ class NavNode(object):
         print("3")
 
         # this loop lasts the duration of the movement from one random walk goal to the next
-        while (self.ac.get_state() != 3):
-            # this call gets odom info and updates robot location for print statements below
-            sub = rospy.Subscriber('/odom', Odometry, self.callback)
+            # GoalStatus:
+                # 0 => PENDING
+                # 1 => ACTIVE
+            # All other GoalStatus options are indicators to stop
+        while (self.ac.get_state() == 0 or self.ac.get_state() == 1):
+            location = get_object_location()
+            self.object_x = location[0]
+            self.object_y = location[1]
 
             print ("ROBOT IS AT X = ", self.position_robot_x)
             print ("ROBOT IS AT Y = ", self.position_robot_y)
+            print("Object x: ", self.object_x)
+            print("Object y: ", self.object_y)
 
-            distance = math.sqrt((self.object_x - self.position_robot_y)**2 + (self.object_y - self.position_robot_y)**2)
+            distance = math.sqrt((self.object_x - self.position_robot_x)**2 + (self.object_y - self.position_robot_y)**2)
             print ("distance = ", distance)
 
             print ("STATE IS: --> ", actionlib.get_name_of_constant(GoalStatus, self.ac.get_state()))
 
-            #if distance <= 0.75:
-                #print ("will make a call to go to object")
-                #nav_node.go_to_object()
+            if distance <= 5:
+                print ("will make a call to go to object")
+                nav_node.go_to_object()
             
 
             rospy.sleep(1.0)
