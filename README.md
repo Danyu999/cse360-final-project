@@ -12,6 +12,7 @@ Authors: Lauren Bright and Dan Yu
 
 ### Specifications
 * Coded in the Robot Ignite Academy environment with ROS and Python
+* Used the environment provided in "ROS Navigation in 5 Days, Unit 1: Basic Concepts".
 
 ### Directory
 * [launch] contains the ROS launch files for the robot
